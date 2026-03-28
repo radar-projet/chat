@@ -1,578 +1,621 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NeonChat</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <style>
-        /* --- VARIABLES --- */
-        :root {
-            --neon-blue: #00f3ff;
-            --neon-pink: #ff00ff;
-            --glass-bg: rgba(15, 15, 20, 0.5); /* Vitre un peu plus sombre */
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Murmur — Chat</title>
 
-        /* --- FOND SOMBRE ANIMÉ (NOUVEAU) --- */
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #030305; /* Noir ultra profond */
-            color: white;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            position: relative;
-            z-index: 1;
-        }
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
 
-        /* Orbes lumineuses qui flottent en arrière-plan */
-        body::before, body::after {
-            content: '';
-            position: absolute;
-            width: 40vw;
-            height: 40vw;
-            border-radius: 50%;
-            filter: blur(80px); /* Effet de lumière diffuse */
-            z-index: -1;
-            animation: orbFloat 12s infinite alternate ease-in-out;
-        }
+  <!-- Tailwind CSS (Play CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'] },
+          colors: {
+            terra: {
+              50:  '#FEF7F2', 100: '#FCEEE3', 200: '#F9D9C5', 300: '#F3BC9E',
+              400: '#E8996D', 500: '#D4763C', 600: '#B85E2D', 700: '#964A24',
+              800: '#7A3D22', 900: '#653420',
+            },
+            sand: {
+              50: '#FAFAF7', 100: '#F5F3EE', 200: '#EBE7DF', 300: '#DDD8CD',
+              400: '#C8C1B4', 500: '#B0A899',
+            },
+            ink: {
+              DEFAULT: '#1C1917', soft: '#44403C', muted: '#78716C',
+              faint: '#A8A29E', ghost: '#D6D3D1',
+            },
+          },
+        },
+      },
+    };
+  </script>
 
-        body::before {
-            background: rgba(0, 243, 255, 0.15);
-            top: -10%;
-            left: -10%;
-        }
+  <!-- Vue 3 (Production) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
-        body::after {
-            background: rgba(255, 0, 255, 0.15);
-            bottom: -10%;
-            right: -10%;
-            animation-duration: 15s;
-            animation-delay: -5s;
-        }
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-        @keyframes orbFloat {
-            0% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(10vw, 10vh) scale(1.2); }
-            100% { transform: translate(-5vw, 15vh) scale(0.9); }
-        }
+  <style>
+    [v-cloak] { display: none !important; }
 
-        /* --- LA VITRE PRINCIPALE --- */
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 24px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 243, 255, 0.05) inset;
-            width: 90%;
-            max-width: 1000px;
-            height: 85vh;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            overflow: hidden;
-        }
+    html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 
-        /* --- ÉCRAN DE CONNEXION --- */
-        #login-screen {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            z-index: 10;
-        }
+    /* Scrollbar */
+    .scrollbar-thin::-webkit-scrollbar { width: 5px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #D6D3D1; border-radius: 10px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #A8A29E; }
 
-        h1 {
-            font-size: clamp(2.5rem, 5vw, 4rem);
-            margin-bottom: 30px;
-            text-shadow: 0 0 15px var(--neon-blue), 0 0 30px var(--neon-pink);
-            letter-spacing: 3px;
-            text-align: center;
-        }
+    /* Screen transitions */
+    .screen-enter-active, .screen-leave-active { transition: opacity .3s ease, transform .3s ease; }
+    .screen-enter-from { opacity: 0; transform: translateY(8px); }
+    .screen-leave-to   { opacity: 0; transform: translateY(-8px); }
 
-        input[type="text"].login-input {
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 30px;
-            padding: 15px 30px;
-            color: white;
-            font-size: 1.2rem;
-            outline: none;
-            transition: 0.3s;
-            text-align: center;
-            width: 80%;
-            max-width: 300px;
-        }
+    /* Message enter */
+    .msg-enter-active { transition: opacity .35s ease, transform .35s cubic-bezier(.16,1,.3,1); }
+    .msg-enter-from   { opacity: 0; transform: translateY(12px); }
+    .msg-move         { transition: transform .35s ease; }
 
-        input[type="text"].login-input:focus {
-            border-color: var(--neon-blue);
-            box-shadow: 0 0 25px rgba(0, 243, 255, 0.3);
-            transform: scale(1.05);
-        }
+    /* Modal */
+    .modal-enter-active, .modal-leave-active { transition: opacity .25s ease; }
+    .modal-enter-from, .modal-leave-to       { opacity: 0; }
+    .modal-enter-active .modal-body,
+    .modal-leave-active .modal-body           { transition: transform .3s cubic-bezier(.16,1,.3,1); }
+    .modal-enter-from .modal-body,
+    .modal-leave-to   .modal-body             { transform: scale(.95); }
 
-        button.neon-btn {
-            margin-top: 25px;
-            background: transparent;
-            color: white;
-            font-size: 1.2rem;
-            padding: 12px 50px;
-            border: 2px solid var(--neon-pink);
-            border-radius: 30px;
-            cursor: pointer;
-            transition: 0.3s;
-            text-transform: uppercase;
-            font-weight: bold;
-            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4) inset;
-        }
+    /* Typing dots */
+    @keyframes dot { 0%,60%,100% { transform: translateY(0); opacity: .35; } 30% { transform: translateY(-5px); opacity: 1; } }
+    .dot { animation: dot 1.4s ease-in-out infinite; }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
 
-        button.neon-btn:hover {
-            background: var(--neon-pink);
-            box-shadow: 0 0 25px var(--neon-pink) inset, 0 0 40px var(--neon-pink);
-            text-shadow: 0 0 5px black;
-            transform: translateY(-3px);
-        }
-
-        /* --- ÉCRAN DE CHAT --- */
-        #chat-screen {
-            display: none;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        .chat-header {
-            padding: 15px 25px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(10px);
-        }
-
-        .chat-header span {
-            color: var(--neon-blue);
-            font-weight: bold;
-            font-size: 1.2rem;
-            text-shadow: 0 0 8px var(--neon-blue);
-        }
-
-        #logout-btn {
-            background: rgba(255,0,0,0.1);
-            border: 1px solid rgba(255,0,0,0.4);
-            color: #ff4444;
-            cursor: pointer;
-            border-radius: 8px;
-            padding: 8px 15px;
-            transition: 0.3s;
-            font-weight: bold;
-        }
-
-        #logout-btn:hover {
-            background: #ff4444;
-            color: white;
-            box-shadow: 0 0 15px #ff4444;
-        }
-
-        /* --- ZONE DES MESSAGES --- */
-        #messages {
-            flex-grow: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            scroll-behavior: smooth;
-        }
-
-        #messages::-webkit-scrollbar { width: 6px; }
-        #messages::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
-        #messages::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 10px; box-shadow: 0 0 10px var(--neon-blue); }
-
-        .message-bulle {
-            background: rgba(255,255,255,0.03);
-            padding: 15px 20px;
-            border-radius: 20px 20px 20px 5px;
-            max-width: 75%;
-            border: 1px solid rgba(0, 243, 255, 0.2);
-            border-left: 4px solid var(--neon-blue);
-            animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-            word-wrap: break-word;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            transform-origin: bottom left;
-        }
-
-        .message-bulle.me {
-            align-self: flex-end;
-            border-radius: 20px 20px 5px 20px;
-            border: 1px solid rgba(255, 0, 255, 0.2);
-            border-left: 1px solid rgba(255, 0, 255, 0.2);
-            border-right: 4px solid var(--neon-pink);
-            background: rgba(255, 0, 255, 0.03);
-            transform-origin: bottom right;
-        }
-
-        .msg-pseudo {
-            font-size: 0.75rem;
-            color: #aaa;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .message-bulle.me .msg-pseudo { text-align: right; color: var(--neon-pink); }
-        .message-bulle:not(.me) .msg-pseudo { color: var(--neon-blue); }
-        
-        .msg-texte {
-            font-size: 1.05rem;
-            line-height: 1.4;
-        }
-
-        .msg-media img, .msg-media video {
-            max-width: 100%;
-            max-height: 250px;
-            border-radius: 12px;
-            margin-top: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-            object-fit: cover;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .msg-media img:hover {
-            transform: scale(1.02);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
-        }
-
-        /* --- BARRE DE SAISIE --- */
-        .chat-input-area {
-            display: flex;
-            padding: 15px 20px;
-            background: rgba(0,0,0,0.7);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            gap: 12px;
-            align-items: center;
-        }
-
-        .chat-input-area input[type="text"] {
-            flex-grow: 1;
-            padding: 15px 20px;
-            font-size: 1rem;
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            background: rgba(255,255,255,0.03);
-            border-radius: 25px;
-            outline: none;
-            transition: 0.3s;
-        }
-        
-        .chat-input-area input[type="text"]:focus {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(0, 243, 255, 0.5);
-            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
-        }
-
-        .file-upload-btn, .send-btn {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.3s;
-            flex-shrink: 0;
-            outline: none;
-        }
-
-        .file-upload-btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--neon-blue);
-            color: var(--neon-blue);
-            font-size: 1.5rem;
-        }
-
-        .file-upload-btn:hover { background: rgba(0, 243, 255, 0.1); box-shadow: 0 0 15px var(--neon-blue); }
-
-        .file-upload-btn input[type="file"] {
-            position: absolute;
-            opacity: 0;
-            cursor: pointer;
-            height: 100%;
-            width: 100%;
-        }
-
-        .send-btn {
-            background: var(--neon-blue);
-            color: black;
-            border: none;
-            font-size: 1.2rem;
-            box-shadow: 0 0 15px var(--neon-blue);
-        }
-
-        .send-btn:hover { transform: scale(1.1); background: white; box-shadow: 0 0 25px white; }
-
-        @keyframes slideUp { 
-            from { opacity: 0; transform: translateY(20px) scale(0.9); } 
-            to { opacity: 1; transform: translateY(0) scale(1); } 
-        }
-
-        /* --- IMAGE EN PLEIN ÉCRAN --- */
-        #image-modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.95);
-            backdrop-filter: blur(10px);
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            animation: fadeIn 0.3s;
-        }
-
-        #img-en-grand {
-            max-width: 90%;
-            max-height: 70vh;
-            border-radius: 15px;
-            box-shadow: 0 0 40px rgba(0, 243, 255, 0.5);
-            border: 2px solid rgba(255,255,255,0.1);
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 20px;
-            right: 30px;
-            color: white;
-            font-size: 40px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .close-modal:hover { color: var(--neon-pink); transform: scale(1.2); }
-
-        .download-btn {
-            margin-top: 30px;
-            background: transparent;
-            color: white;
-            border: 2px solid var(--neon-blue);
-            padding: 12px 30px;
-            border-radius: 30px;
-            font-weight: bold;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .download-btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 20px var(--neon-blue); }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        /* --- RESPONSIVE MOBILE --- */
-        @media (max-width: 768px) {
-            .glass-panel { width: 100%; height: 100vh; border-radius: 0; border: none; box-shadow: none; }
-            .chat-header { padding: 12px 15px; }
-            .message-bulle { max-width: 85%; padding: 12px 15px; }
-            .chat-input-area { padding: 10px; padding-bottom: 20px; }
-            .chat-input-area input[type="text"] { font-size: 16px; padding: 12px 15px; }
-            .file-upload-btn, .send-btn { width: 45px; height: 45px; }
-        }
-    </style>
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin .7s linear infinite; }
+  </style>
 </head>
-<body>
 
-    <div class="glass-panel">
-        <div id="login-screen">
-            <h1>NEON<span style="color:var(--neon-pink)">CHAT</span></h1>
-            <input type="text" id="pseudo-input" class="login-input" placeholder="Ton pseudo..." autocomplete="off">
-            <button class="neon-btn" onclick="login()">Connecter</button>
+<body class="font-sans bg-sand-50 text-ink antialiased">
+
+<div id="app" v-cloak></div>
+
+<!-- ════════════════════════════════════════════════
+     COMPONENT TEMPLATES
+     ════════════════════════════════════════════════ -->
+
+<!-- Login -->
+<script type="text/x-template" id="tmpl-login">
+  <div class="min-h-screen flex items-center justify-center bg-sand-50 px-4 py-8">
+    <div class="w-full max-w-sm">
+
+      <div class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-terra-50 mb-5">
+          <svg class="w-7 h-7 text-terra-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-semibold tracking-tight text-ink">Murmur</h1>
+        <p class="text-sm text-ink-muted mt-2">Rejoignez la conversation publique</p>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-sand-200 p-6">
+        <form @submit.prevent="submit">
+          <label class="block text-sm font-medium text-ink-soft mb-2">Votre pseudo</label>
+          <input
+            ref="inputEl"
+            v-model="name"
+            type="text"
+            placeholder="Entrez un pseudo…"
+            maxlength="24"
+            class="w-full px-4 py-3 rounded-xl border bg-sand-50 text-ink placeholder:text-ink-faint text-sm transition-all duration-200 focus:bg-white focus:border-terra-300 focus:ring-2 focus:ring-terra-100 outline-none"
+            :class="error ? 'border-red-300' : 'border-sand-200'"
+          >
+          <p v-if="error" class="mt-2 text-xs text-red-500">{{ error }}</p>
+          <button
+            type="submit"
+            class="w-full mt-4 py-3 px-4 bg-terra-500 hover:bg-terra-600 active:bg-terra-700 text-white text-sm font-medium rounded-xl transition-colors duration-200"
+          >Commencer</button>
+        </form>
+      </div>
+
+      <p class="text-center text-xs text-ink-faint mt-6">Connexion anonyme · Aucune donnée collectée</p>
+    </div>
+  </div>
+</script>
+
+<!-- Chat -->
+<script type="text/x-template" id="tmpl-chat">
+  <div class="h-[100dvh] flex flex-col bg-sand-50">
+
+    <!-- Header -->
+    <header class="flex-shrink-0 bg-white border-b border-sand-200 h-[60px] flex items-center justify-between px-4 sm:px-6">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-terra-50 flex-shrink-0">
+          <svg class="w-[18px] h-[18px] text-terra-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-sm font-semibold text-ink leading-tight">Discussion globale</h1>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span class="text-[11px] text-ink-muted">En ligne</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-terra-50 text-xs font-medium text-terra-700">
+          <span class="w-5 h-5 rounded-full bg-terra-200 flex items-center justify-center text-[10px] font-bold text-terra-800">{{ pseudo.charAt(0).toUpperCase() }}</span>
+          {{ pseudo }}
+        </span>
+        <button @click="$emit('logout')" class="p-2 rounded-lg text-ink-faint hover:text-ink-muted hover:bg-sand-100 transition-colors duration-200" title="Se déconnecter">
+          <svg class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Messages -->
+    <div ref="scrollEl" class="flex-1 overflow-y-auto scrollbar-thin">
+      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-3">
+
+        <!-- Loading -->
+        <div v-if="loading" class="flex justify-center py-24">
+          <div class="flex gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-terra-400 dot"></span>
+            <span class="w-2 h-2 rounded-full bg-terra-400 dot"></span>
+            <span class="w-2 h-2 rounded-full bg-terra-400 dot"></span>
+          </div>
         </div>
 
-        <div id="chat-screen">
-            <div class="chat-header">
-                <div>👋 <span id="display-pseudo"></span></div>
-                <button id="logout-btn" onclick="logout()">Déconnexion</button>
-            </div>
-            
-            <div id="messages"></div>
-
-            <form class="chat-input-area" id="send-form">
-                <div class="file-upload-btn" title="Envoyer une image">
-                    +
-                    <input type="file" id="media-input" accept="image/*,video/*">
-                </div>
-                <input type="text" id="msg-input" placeholder="Écris un message..." autocomplete="off">
-                <button type="submit" class="send-btn" id="send-btn">➤</button>
-            </form>
+        <!-- Empty state -->
+        <div v-else-if="messages.length === 0" class="flex flex-col items-center justify-center py-24 text-center select-none">
+          <div class="w-16 h-16 rounded-2xl bg-sand-100 flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-ink-ghost" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+            </svg>
+          </div>
+          <p class="text-sm text-ink-muted">Aucun message pour le moment</p>
+          <p class="text-xs text-ink-faint mt-1">Soyez le premier à écrire !</p>
         </div>
+
+        <!-- Message list -->
+        <template v-else>
+          <message-bubble
+            v-for="msg in messages"
+            :key="msg.id"
+            :msg="msg"
+            :is-me="msg.pseudo === pseudo"
+            @open-media="openModal"
+          />
+        </template>
+
+      </div>
     </div>
 
-    <div id="image-modal">
-        <span class="close-modal" onclick="fermerModal()">&times;</span>
-        <img id="img-en-grand" src="">
-        <button class="download-btn" onclick="telechargerImage()">⬇️ Enregistrer l'image</button>
+    <!-- Upload preview bar -->
+    <transition name="screen">
+      <div v-if="pendingFile" class="flex-shrink-0 bg-white border-t border-sand-200 px-4 sm:px-6 py-3">
+        <div class="max-w-5xl mx-auto flex items-center gap-3">
+          <img v-if="thumbURL" :src="thumbURL" class="w-11 h-11 rounded-lg object-cover border border-sand-200">
+          <div v-else class="w-11 h-11 rounded-lg bg-sand-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-ink-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-ink truncate">{{ pendingFile.name }}</p>
+            <p class="text-xs text-ink-faint">{{ fmtSize(pendingFile.size) }}</p>
+          </div>
+          <button @click="clearPending" class="p-1.5 rounded-lg text-ink-faint hover:text-red-500 hover:bg-red-50 transition-colors duration-200">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Input bar -->
+    <div class="flex-shrink-0 bg-white border-t border-sand-200 px-4 sm:px-6 py-3">
+      <div class="max-w-5xl mx-auto flex items-end gap-2">
+        <input type="file" ref="fileEl" accept="image/*,video/*" class="hidden" @change="onFile">
+        <button
+          @click="fileEl.click()"
+          class="p-2.5 rounded-xl text-ink-faint hover:text-terra-500 hover:bg-terra-50 transition-colors duration-200 flex-shrink-0"
+          title="Joindre un fichier"
+        >
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+          </svg>
+        </button>
+
+        <div class="flex-1">
+          <input
+            v-model="text"
+            type="text"
+            placeholder="Écrire un message…"
+            maxlength="5000"
+            @keydown.enter.prevent="send"
+            class="w-full px-4 py-3 rounded-xl border border-sand-200 bg-sand-50 text-ink placeholder:text-ink-faint text-sm transition-all duration-200 focus:bg-white focus:border-terra-300 focus:ring-2 focus:ring-terra-100 outline-none"
+          >
+        </div>
+
+        <button
+          @click="send"
+          :disabled="busy || (!text.trim() && !pendingFile)"
+          class="p-2.5 rounded-xl bg-terra-500 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-terra-600 active:bg-terra-700 transition-colors duration-200 flex-shrink-0"
+          title="Envoyer"
+        >
+          <svg v-if="busy" class="w-5 h-5 spinner" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
-    <script>
-        const SUPABASE_URL = 'https://exnrseyyxzqjhlabtesu.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_aAQhzHqknK1UKWRiLJur0w_E7jAXoDW';
-        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <!-- Media Modal -->
+    <transition name="modal">
+      <div
+        v-if="modal.show"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-ink/75 backdrop-blur-sm p-4"
+        @click.self="modal.show = false"
+        @keydown.escape="modal.show = false"
+      >
+        <div class="modal-body relative max-w-[92vw] max-h-[90vh]">
+          <button
+            @click="modal.show = false"
+            class="absolute -top-12 right-0 sm:right-0 p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors duration-200"
+          >
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <img v-if="modal.type === 'image'" :src="modal.url" class="max-w-full max-h-[82vh] rounded-2xl object-contain select-none">
+          <video v-else :src="modal.url" controls autoplay playsinline class="max-w-full max-h-[82vh] rounded-2xl"></video>
+          <button
+            @click="download"
+            class="absolute -bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-medium backdrop-blur-sm transition-colors duration-200"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+            </svg>
+            Télécharger
+          </button>
+        </div>
+      </div>
+    </transition>
 
-        let monPseudo = localStorage.getItem('neonchat_pseudo');
-        if (monPseudo) showChat();
+  </div>
+</script>
 
-        function login() {
-            const inputVal = document.getElementById('pseudo-input').value.trim();
-            if (inputVal.length === 0) return;
-            monPseudo = inputVal;
-            localStorage.setItem('neonchat_pseudo', monPseudo);
-            showChat();
+<!-- Message Bubble -->
+<script type="text/x-template" id="tmpl-bubble">
+  <div :class="['flex flex-col', isMe ? 'items-end' : 'items-start']">
+    <span class="text-[11px] font-medium mb-1 px-1" :class="isMe ? 'text-terra-600' : 'text-ink-muted'">{{ msg.pseudo }}</span>
+
+    <div
+      :class="[
+        'px-4 py-2.5 max-w-[80%] sm:max-w-[65%] text-[14px] leading-relaxed break-words',
+        isMe
+          ? 'bg-terra-500 text-white rounded-2xl rounded-br-md'
+          : 'bg-white text-ink border border-sand-200 rounded-2xl rounded-bl-md shadow-[0_1px_2px_rgba(0,0,0,.04)]'
+      ]"
+    >
+      <!-- Image -->
+      <div v-if="msg.media_url && !isVideo" class="mb-2 -mx-1 -mt-1 cursor-pointer group" @click="$emit('open-media', msg.media_url, 'image')">
+        <img :src="msg.media_url" :alt="msg.texte || 'Image'" class="max-w-[280px] sm:max-w-[320px] rounded-xl transition-opacity duration-200 group-hover:opacity-90" loading="lazy">
+      </div>
+      <!-- Video -->
+      <div v-if="msg.media_url && isVideo" class="mb-2 -mx-1 -mt-1">
+        <video :src="msg.media_url" controls preload="metadata" playsinline class="max-w-[280px] sm:max-w-[320px] rounded-xl"></video>
+      </div>
+      <!-- Text -->
+      <p v-if="msg.texte" class="whitespace-pre-wrap">{{ msg.texte }}</p>
+    </div>
+
+    <span class="text-[11px] text-ink-faint mt-1 px-1">{{ time(msg.created_at) }}</span>
+  </div>
+</script>
+
+
+<!-- ════════════════════════════════════════════════
+     APPLICATION (Vue 3 — Composition API)
+     ════════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  const { createApp, ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } = Vue;
+
+  /* ──────────────────────────────────────────────
+     Supabase client
+     ────────────────────────────────────────────── */
+  const SUPABASE_URL = 'https://exnrseyyxzqjhlabtesu.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_aAQhzHqknK1UKWRiLJur0w_E7jAXoDW';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* ──────────────────────────────────────────────
+     Pure helpers (outside Vue, no reactivity)
+     ────────────────────────────────────────────── */
+  const fmtTime = (d) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const fmtSize = (b) => {
+    if (b < 1024) return b + ' o';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' Ko';
+    return (b / 1048576).toFixed(1) + ' Mo';
+  };
+
+  /* ══════════════════════════════════════════════
+     MessageBubble  (presentational component)
+     ══════════════════════════════════════════════ */
+  const MessageBubble = {
+    name: 'MessageBubble',
+    props: {
+      msg:   { type: Object, required: true },
+      isMe:  { type: Boolean, default: false },
+    },
+    emits: ['open-media'],
+    template: '#tmpl-bubble',
+    setup(props) {
+      const isVideo = computed(() => props.msg.media_type?.startsWith('video') ?? false);
+      return { time: fmtTime, isVideo };
+    },
+  };
+
+  /* ══════════════════════════════════════════════
+     LoginScreen  (auth UI)
+     ══════════════════════════════════════════════ */
+  const LoginScreen = {
+    name: 'LoginScreen',
+    emits: ['login'],
+    template: '#tmpl-login',
+    setup(_, { emit }) {
+      const name    = ref('');
+      const error   = ref('');
+      const inputEl = ref(null);
+
+      function submit() {
+        const v = name.value.trim();
+        if (!v)                          { error.value = 'Veuillez entrer un pseudo'; return; }
+        if (v.length < 2)                { error.value = 'Minimum 2 caractères';      return; }
+        emit('login', v);
+      }
+
+      onMounted(() => nextTick(() => inputEl.value?.focus()));
+
+      return { name, error, inputEl, submit };
+    },
+  };
+
+  /* ══════════════════════════════════════════════
+     ChatScreen  (main chat view + all logic)
+     ══════════════════════════════════════════════ */
+  const ChatScreen = {
+    name: 'ChatScreen',
+    props: {
+      pseudo: { type: String, required: true },
+    },
+    emits: ['logout'],
+    template: '#tmpl-chat',
+    components: { MessageBubble },
+
+    setup(props) {
+      /* ── refs ── */
+      const messages    = ref([]);
+      const loading     = ref(true);
+      const text        = ref('');
+      const pendingFile = ref(null);
+      const thumbURL    = ref(null);
+      const busy        = ref(false);
+      const fileEl      = ref(null);
+      const scrollEl    = ref(null);
+
+      const modal = reactive({ show: false, url: '', type: 'image' });
+
+      let channel = null;
+
+      /* ── scroll ── */
+      function scroll(smooth = true) {
+        const el = scrollEl.value;
+        if (!el) return;
+        el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
+      }
+
+      /* ── load ── */
+      async function load() {
+        loading.value = true;
+        try {
+          const { data, error } = await db
+            .from('chat_global')
+            .select('*')
+            .order('created_at', { ascending: true });
+          if (error) throw error;
+          messages.value = data ?? [];
+        } catch (e) {
+          console.error('Erreur chargement messages :', e);
+          messages.value = [];
         }
+        loading.value = false;
+        await nextTick(() => scroll(false));
+      }
 
-        document.getElementById('pseudo-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') login();
-        });
+      /* ── realtime subscription ── */
+      function subscribe() {
+        channel = db
+          .channel('public:chat_global')
+          .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'chat_global',
+          }, (payload) => {
+            if (messages.value.some(m => m.id === payload.new.id)) return;
+            messages.value.push(payload.new);
+            nextTick(() => scroll(true));
+          })
+          .subscribe();
+      }
 
-        function logout() {
-            localStorage.removeItem('neonchat_pseudo');
-            monPseudo = null;
-            document.getElementById('chat-screen').style.display = 'none';
-            document.getElementById('login-screen').style.display = 'flex';
-            document.getElementById('pseudo-input').value = '';
+      function unsubscribe() {
+        if (channel) { db.removeChannel(channel); channel = null; }
+      }
+
+      /* ── send ── */
+      async function send() {
+        const msgText = text.value.trim();
+        if (!msgText && !pendingFile.value) return;
+        if (busy.value) return;
+        busy.value = true;
+
+        try {
+          let mediaUrl  = null;
+          let mediaType = null;
+
+          if (pendingFile.value) {
+            const file = pendingFile.value;
+            const ext  = file.name.split('.').pop();
+            const key  = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+            const { data: up, error: upErr } = await db.storage
+              .from('medias')
+              .upload(key, file);
+            if (upErr) throw upErr;
+
+            const { data: pub } = db.storage.from('medias').getPublicUrl(up.path);
+            mediaUrl  = pub.publicUrl;
+            mediaType = file.type;
+          }
+
+          const { error: insErr } = await db
+            .from('chat_global')
+            .insert({
+              pseudo:     props.pseudo,
+              texte:      msgText || null,
+              media_url:  mediaUrl,
+              media_type: mediaType,
+            });
+
+          if (insErr) throw insErr;
+
+          text.value = '';
+          clearPending();
+          await nextTick(() => scroll(true));
+        } catch (e) {
+          console.error('Erreur envoi :', e);
         }
+        busy.value = false;
+      }
 
-        function showChat() {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('chat-screen').style.display = 'flex';
-            document.getElementById('display-pseudo').innerText = monPseudo;
-            chargerMessages();
-        }
+      /* ── file handling ── */
+      function onFile(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 20 * 1048576) { alert('Fichier trop volumineux (20 Mo max)'); e.target.value = ''; return; }
+        pendingFile.value = file;
+        if (file.type.startsWith('image/')) {
+          const r = new FileReader();
+          r.onload = (ev) => { thumbURL.value = ev.target.result; };
+          r.readAsDataURL(file);
+        } else { thumbURL.value = null; }
+        e.target.value = '';
+      }
 
-        const messagesDiv = document.getElementById('messages');
-        let dernierMessageAffiche = 0; 
+      function clearPending() {
+        pendingFile.value = null;
+        thumbURL.value    = null;
+        if (fileEl.value) fileEl.value.value = '';
+      }
 
-        function afficherMessage(msg) {
-            const isMe = msg.pseudo === monPseudo;
-            const div = document.createElement('div');
-            div.className = `message-bulle ${isMe ? 'me' : ''}`;
-            
-            let html = `<div class="msg-pseudo">${msg.pseudo}</div>`;
-            if (msg.texte) html += `<div class="msg-texte">${msg.texte}</div>`;
-            
-            if (msg.media_url) {
-                if (msg.media_type && msg.media_type.startsWith('video/')) {
-                    html += `<div class="msg-media"><video controls src="${msg.media_url}"></video></div>`;
-                } else {
-                    html += `<div class="msg-media"><img src="${msg.media_url}" onclick="ouvrirModal('${msg.media_url}')"></div>`;
-                }
-            }
-            
-            div.innerHTML = html;
-            messagesDiv.appendChild(div);
-        }
+      /* ── modal ── */
+      function openModal(url, type) {
+        modal.url  = url;
+        modal.type = type || 'image';
+        modal.show = true;
+      }
 
-        async function chargerMessages() {
-            const { data, error } = await db
-                .from('chat_global')
-                .select('*')
-                .order('created_at', { ascending: true });
-            
-            if (!error && data) {
-                if (data.length !== dernierMessageAffiche) {
-                    messagesDiv.innerHTML = ''; 
-                    data.forEach(afficherMessage);
-                    setTimeout(() => { messagesDiv.scrollTop = messagesDiv.scrollHeight; }, 100);
-                    dernierMessageAffiche = data.length;
-                }
-            }
-        }
+      async function download() {
+        if (!modal.url) return;
+        try {
+          const r    = await fetch(modal.url);
+          const blob = await r.blob();
+          const a    = Object.assign(document.createElement('a'), {
+            href: URL.createObjectURL(blob),
+            download: modal.url.split('/').pop().split('?')[0] || 'murmur-media',
+          });
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(a.href);
+        } catch { window.open(modal.url, '_blank'); }
+      }
 
-        document.getElementById('send-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('send-btn');
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
+      /* ── keyboard ── */
+      function onKey(e) { if (e.key === 'Escape' && modal.show) modal.show = false; }
 
-            const texte = document.getElementById('msg-input').value.trim();
-            const mediaInput = document.getElementById('media-input');
-            const file = mediaInput.files[0];
+      /* ── lifecycle ── */
+      onMounted(() => {
+        load();
+        subscribe();
+        document.addEventListener('keydown', onKey);
+      });
+      onUnmounted(() => {
+        unsubscribe();
+        document.removeEventListener('keydown', onKey);
+      });
 
-            if (!texte && !file) {
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                return;
-            }
+      return {
+        messages, loading, text, pendingFile, thumbURL,
+        busy, fileEl, scrollEl, modal,
+        send, onFile, clearPending, openModal, download,
+        fmtSize,
+      };
+    },
+  };
 
-            let mediaUrl = null;
-            let mediaType = null;
+  /* ══════════════════════════════════════════════
+     Root App  (routing between screens)
+     ══════════════════════════════════════════════ */
+  createApp({
+    components: { LoginScreen, ChatScreen },
 
-            try {
-                if (file) {
-                    const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-                    mediaType = file.type;
-                    const { error: uploadError } = await db.storage.from('medias').upload(fileName, file);
-                    if (uploadError) throw uploadError;
-                    const { data } = db.storage.from('medias').getPublicUrl(fileName);
-                    mediaUrl = data.publicUrl;
-                }
+    setup() {
+      const pseudo     = ref(localStorage.getItem('murmur_user') || '');
+      const isLoggedIn = computed(() => pseudo.value.length > 0);
 
-                await db.from('chat_global').insert([{ pseudo: monPseudo, texte: texte, media_url: mediaUrl, media_type: mediaType }]);
+      function handleLogin(name) {
+        pseudo.value = name;
+        localStorage.setItem('murmur_user', name);
+      }
 
-                document.getElementById('msg-input').value = '';
-                mediaInput.value = ''; 
-                chargerMessages(); 
+      function handleLogout() {
+        pseudo.value = '';
+        localStorage.removeItem('murmur_user');
+      }
 
-            } catch (err) {
-                console.error("Erreur:", err);
-            } finally {
-                btn.disabled = false;
-                btn.style.opacity = '1';
-            }
-        });
+      return { pseudo, isLoggedIn, handleLogin, handleLogout };
+    },
 
-        const modal = document.getElementById('image-modal');
-        const imgEnGrand = document.getElementById('img-en-grand');
+    template: `
+      <transition name="screen" mode="out-in">
+        <login-screen v-if="!isLoggedIn" @login="handleLogin" key="login" />
+        <chat-screen  v-else            :pseudo="pseudo" @logout="handleLogout" key="chat" />
+      </transition>
+    `,
+  }).mount('#app');
 
-        function ouvrirModal(url) {
-            modal.style.display = 'flex';
-            imgEnGrand.src = url;
-        }
+})();
+</script>
 
-        function fermerModal() {
-            modal.style.display = 'none';
-            imgEnGrand.src = ''; 
-        }
-
-        async function telechargerImage() {
-            const url = imgEnGrand.src;
-            try {
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const urlBlob = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = urlBlob;
-                a.download = 'neonchat_' + Date.now() + '.jpg'; 
-                document.body.appendChild(a);
-                a.click(); 
-                window.URL.revokeObjectURL(urlBlob); 
-            } catch (erreur) {
-                window.open(url, '_blank');
-            }
-        }
-
-        setInterval(() => { if (monPseudo) chargerMessages(); }, 2000);
-
-    </script>
 </body>
 </html>
