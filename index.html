@@ -7,51 +7,76 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        /* --- VARIABLES ET FOND ANIMÉ --- */
+        /* --- VARIABLES --- */
         :root {
             --neon-blue: #00f3ff;
             --neon-pink: #ff00ff;
-            --bg-dark: #0a0a12;
-            --glass-bg: rgba(20, 20, 35, 0.4);
+            --glass-bg: rgba(15, 15, 20, 0.5); /* Vitre un peu plus sombre */
         }
 
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
+        /* --- FOND SOMBRE ANIMÉ (NOUVEAU) --- */
         body {
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(-45deg, #05050a, #1a0b2e, #0b1a2e, #05050a);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
+            background-color: #030305; /* Noir ultra profond */
             color: white;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
+            position: relative;
+            z-index: 1;
         }
 
-        /* --- LA VITRE PRINCIPALE (GLASSMORPHISM) --- */
+        /* Orbes lumineuses qui flottent en arrière-plan */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            width: 40vw;
+            height: 40vw;
+            border-radius: 50%;
+            filter: blur(80px); /* Effet de lumière diffuse */
+            z-index: -1;
+            animation: orbFloat 12s infinite alternate ease-in-out;
+        }
+
+        body::before {
+            background: rgba(0, 243, 255, 0.15);
+            top: -10%;
+            left: -10%;
+        }
+
+        body::after {
+            background: rgba(255, 0, 255, 0.15);
+            bottom: -10%;
+            right: -10%;
+            animation-duration: 15s;
+            animation-delay: -5s;
+        }
+
+        @keyframes orbFloat {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(10vw, 10vh) scale(1.2); }
+            100% { transform: translate(-5vw, 15vh) scale(0.9); }
+        }
+
+        /* --- LA VITRE PRINCIPALE --- */
         .glass-panel {
             background: var(--glass-bg);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 24px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 243, 255, 0.1) inset;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 243, 255, 0.05) inset;
             width: 90%;
-            max-width: 1000px; /* Plus large pour les PC */
+            max-width: 1000px;
             height: 85vh;
             display: flex;
             flex-direction: column;
             position: relative;
             overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         /* --- ÉCRAN DE CONNEXION --- */
@@ -65,7 +90,7 @@
         }
 
         h1 {
-            font-size: clamp(2.5rem, 5vw, 4rem); /* S'adapte à l'écran automatiquement */
+            font-size: clamp(2.5rem, 5vw, 4rem);
             margin-bottom: 30px;
             text-shadow: 0 0 15px var(--neon-blue), 0 0 30px var(--neon-pink);
             letter-spacing: 3px;
@@ -166,7 +191,6 @@
             scroll-behavior: smooth;
         }
 
-        /* Scrollbar futuriste (PC) */
         #messages::-webkit-scrollbar { width: 6px; }
         #messages::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
         #messages::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 10px; box-shadow: 0 0 10px var(--neon-blue); }
@@ -180,7 +204,7 @@
             border-left: 4px solid var(--neon-blue);
             animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
             word-wrap: break-word;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             transform-origin: bottom left;
         }
 
@@ -230,7 +254,7 @@
         .chat-input-area {
             display: flex;
             padding: 15px 20px;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.7);
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             gap: 12px;
             align-items: center;
@@ -354,43 +378,15 @@
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* =========================================
-           ✨ LA MAGIE RESPONSIVE (POUR TÉLÉPHONES) ✨
-           ========================================= */
+        /* --- RESPONSIVE MOBILE --- */
         @media (max-width: 768px) {
-            .glass-panel {
-                width: 100%;
-                height: 100vh; /* Prend 100% de la hauteur de l'écran */
-                border-radius: 0; /* On enlève les bords arrondis */
-                border: none;
-                box-shadow: none;
-            }
-
-            .chat-header {
-                padding: 12px 15px;
-            }
-
-            .message-bulle {
-                max-width: 85%; /* Les bulles prennent plus de place sur petit écran */
-                padding: 12px 15px;
-            }
-
-            .chat-input-area {
-                padding: 10px;
-                padding-bottom: 20px; /* Un peu d'espace en bas pour les iPhones */
-            }
-
-            .chat-input-area input[type="text"] {
-                font-size: 16px; /* Empêche le zoom automatique sur iPhone */
-                padding: 12px 15px;
-            }
-
-            .file-upload-btn, .send-btn {
-                width: 45px;
-                height: 45px;
-            }
+            .glass-panel { width: 100%; height: 100vh; border-radius: 0; border: none; box-shadow: none; }
+            .chat-header { padding: 12px 15px; }
+            .message-bulle { max-width: 85%; padding: 12px 15px; }
+            .chat-input-area { padding: 10px; padding-bottom: 20px; }
+            .chat-input-area input[type="text"] { font-size: 16px; padding: 12px 15px; }
+            .file-upload-btn, .send-btn { width: 45px; height: 45px; }
         }
-
     </style>
 </head>
 <body>
@@ -428,7 +424,6 @@
     </div>
 
     <script>
-        // --- CONFIGURATION ---
         const SUPABASE_URL = 'https://exnrseyyxzqjhlabtesu.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_aAQhzHqknK1UKWRiLJur0w_E7jAXoDW';
         const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -444,7 +439,6 @@
             showChat();
         }
 
-        // Permet de se connecter en appuyant sur la touche "Entrée"
         document.getElementById('pseudo-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') login();
         });
@@ -497,7 +491,6 @@
                 if (data.length !== dernierMessageAffiche) {
                     messagesDiv.innerHTML = ''; 
                     data.forEach(afficherMessage);
-                    // Défilement automatique vers le bas
                     setTimeout(() => { messagesDiv.scrollTop = messagesDiv.scrollHeight; }, 100);
                     dernierMessageAffiche = data.length;
                 }
@@ -547,7 +540,6 @@
             }
         });
 
-        // --- GESTION IMAGE ---
         const modal = document.getElementById('image-modal');
         const imgEnGrand = document.getElementById('img-en-grand');
 
