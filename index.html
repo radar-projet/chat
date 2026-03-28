@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeonChat - Actif</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* CSS NEON GLASSMORPHISM */
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --bg-dark: #0a0a12;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 243, 255, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(255, 0, 255, 0.15), transparent 25%);
+            color: white;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 800px;
+            height: 85vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #login-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-pink);
+            letter-spacing: 2px;
+        }
+
+        input[type="text"] {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid transparent;
+            border-radius: 30px;
+            padding: 15px 25px;
+            color: white;
+            font-size: 1.2rem;
+            outline: none;
+            transition: 0.3s;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 20px var(--neon-blue);
+        }
+
+        button.neon-btn {
+            margin-top: 20px;
+            background: transparent;
+            color: white;
+            font-size: 1.2rem;
+            padding: 12px 40px;
+            border: 2px solid var(--neon-pink);
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            font-weight: bold;
+            box-shadow: 0 0 10px var(--neon-pink) inset, 0 0 10px var(--neon-pink);
+        }
+
+        button.neon-btn:hover {
+            background: var(--neon-pink);
+            box-shadow: 0 0 20px var(--neon-pink) inset, 0 0 30px var(--neon-pink);
+            text-shadow: 0 0 5px black;
+        }
+
+        #chat-screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .chat-header span {
+            color: var(--neon-blue);
+            font-weight: bold;
+            text-shadow: 0 0 5px var(--neon-blue);
+        }
+
+        #logout-btn {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            padding: 5px 10px;
+            transition: 0.3s;
+        }
+
+        #logout-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        #messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #messages::-webkit-scrollbar { width: 8px; }
+        #messages::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 10px; }
+
+        .message-bulle {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            border-left: 3px solid var(--neon-blue);
+            animation: fadeIn 0.3s ease-in-out;
+            word-wrap: break-word;
+        }
+
+        .message-bulle.me {
+            align-self: flex-end;
+            border-left: none;
+            border-right: 3px solid var(--neon-pink);
+            background: rgba(255, 0, 255, 0.05);
+        }
+
+        .msg-pseudo {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .message-bulle.me .msg-pseudo { text-align: right; color: var(--neon-pink); }
+        
+        .msg-media img, .msg-media video {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            margin-top: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            object-fit: cover;
+        }
+
+        .chat-input-area {
+            display: flex;
+            padding: 15px;
+            background: rgba(0,0,0,0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 10px;
+        }
+
+        .chat-input-area input[type="text"] {
+            flex-grow: 1;
+            padding: 12px 20px;
+            font-size: 1rem;
+            border: none;
+            color: white; /* TEXTE CORRIGÉ EN BLANC ICI ! */
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            outline: none;
+            transition: 0.3s;
+        }
+        
+        .chat-input-area input[type="text"]:focus {
+            background: rgba(255,255,255,0.1);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+        }
+
+        .file-upload-btn {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--neon-blue);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            color: var(--neon-blue);
+            font-size: 1.5rem;
+            transition: 0.3s;
+            flex-shrink: 0;
+        }
+
+        .file-upload-btn:hover {
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        .file-upload-btn input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 100%;
+            width: 100%;
+        }
+
+        .send-btn {
+            background: var(--neon-blue);
+            color: black;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 15px var(--neon-blue);
+            transition: 0.3s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover { transform: scale(1.1); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="glass-panel">
+        <div id="login-screen">
+            <h1>NEON<span style="color:var(--neon-pink)">CHAT</span></h1>
+            <input type="text" id="pseudo-input" placeholder="Choisis ton pseudo..." autocomplete="off">
+            <button class="neon-btn" onclick="login()">Rejoindre</button>
+        </div>
+
+        <div id="chat-screen">
+            <div class="chat-header">
+                <div>Connecté: <span id="display-pseudo"></span></div>
+                <button id="logout-btn" onclick="logout()">Quitter</button>
+            </div>
+            
+            <div id="messages"></div>
+
+            <form class="chat-input-area" id="send-form">
+                <div class="file-upload-btn" title="Ajouter Image/Video">
+                    +
+                    <input type="file" id="media-input" accept="image/*,video/*">
+                </div>
+                <input type="text" id="msg-input" placeholder="Écris ton message ici..." autocomplete="off">
+                <button type="submit" class="send-btn" id="send-btn">➤</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        const SUPABASE_URL = 'https://exnrseyyxzqjhlabtesu.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_aAQhzHqknK1UKWRiLJur0w_E7jAXoDW';
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Son de notification "Ding" gratuit
+        const sonNotif = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
+        // --- 2. GESTION DU PSEUDO ---
+        let monPseudo = localStorage.getItem('neonchat_pseudo');
+        if (monPseudo) showChat();
+
+        function login() {
+            const inputVal = document.getElementById('pseudo-input').value.trim();
+            if (inputVal.length === 0) {
+                alert("Tu dois écrire un pseudo avant de rejoindre !");
+                return;
+            }
+            monPseudo = inputVal;
+            localStorage.setItem('neonchat_pseudo', monPseudo);
+            showChat();
+        }
+
+        function logout() {
+            localStorage.removeItem('neonchat_pseudo');
+            monPseudo = null;
+            document.getElementById('chat-screen').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('pseudo-input').value = '';
+        }
+
+        function showChat() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('chat-screen').style.display = 'flex';
+            document.getElementById('display-pseudo').innerText = monPseudo;
+            chargerMessages();
+        }
+
+        // --- 3. AFFICHAGE DES MESSAGES ET DU SON ---
+        const messagesDiv = document.getElementById('messages');
+        let dernierMessageAffiche = 0; 
+
+        function afficherMessage(msg) {
+            const isMe = msg.pseudo === monPseudo;
+            const div = document.createElement('div');
+            div.className = `message-bulle ${isMe ? 'me' : ''}`;
+            
+            let html = `<div class="msg-pseudo">${msg.pseudo}</div>`;
+            if (msg.texte) html += `<div class="msg-texte">${msg.texte}</div>`;
+            
+            if (msg.media_url) {
+                if (msg.media_type && msg.media_type.startsWith('video/')) {
+                    html += `<div class="msg-media"><video controls src="${msg.media_url}"></video></div>`;
+                } else {
+                    html += `<div class="msg-media"><img src="${msg.media_url}"></div>`;
+                }
+            }
+            
+            div.innerHTML = html;
+            messagesDiv.appendChild(div);
+        }
+
+        async function chargerMessages() {
+            const { data, error } = await db
+                .from('chat_global')
+                .select('*')
+                .order('created_at', { ascending: true });
+            
+            if (!error && data) {
+                if (data.length !== dernierMessageAffiche) {
+                    messagesDiv.innerHTML = ''; 
+                    data.forEach(afficherMessage);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    
+                    // JOUER LE SON SI : on a déjà chargé la page une fois (dernierMessageAffiche > 0)
+                    // ET si le nombre de messages a augmenté
+                    if (dernierMessageAffiche > 0 && data.length > dernierMessageAffiche) {
+                        const dernierMsg = data[data.length - 1];
+                        // Ne pas jouer le son si c'est moi qui l'ai envoyé
+                        if (dernierMsg.pseudo !== monPseudo) {
+                            sonNotif.play().catch(e => console.log("Son bloqué par le navigateur", e));
+                        }
+                    }
+
+                    dernierMessageAffiche = data.length;
+                }
+            }
+        }
+
+        // --- 4. ENVOI DES MESSAGES ET FICHIERS ---
+        document.getElementById('send-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.innerText = "⏳"; 
+
+            const texte = document.getElementById('msg-input').value.trim();
+            const mediaInput = document.getElementById('media-input');
+            const file = mediaInput.files[0];
+
+            if (!texte && !file) {
+                btn.disabled = false;
+                btn.innerText = "➤";
+                return;
+            }
+
+            let mediaUrl = null;
+            let mediaType = null;
+
+            try {
+                if (file) {
+                    const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+                    mediaType = file.type;
+
+                    const { error: uploadError } = await db.storage
+                        .from('medias')
+                        .upload(fileName, file);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data } = db.storage.from('medias').getPublicUrl(fileName);
+                    mediaUrl = data.publicUrl;
+                }
+
+                const { error: dbError } = await db.from('chat_global').insert([{
+                    pseudo: monPseudo,
+                    texte: texte,
+                    media_url: mediaUrl,
+                    media_type: mediaType
+                }]);
+
+                if (dbError) throw dbError;
+
+                document.getElementById('msg-input').value = '';
+                mediaInput.value = ''; 
+                chargerMessages(); 
+
+            } catch (err) {
+                console.error("Erreur:", err);
+                alert("Erreur lors de l'envoi du message.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "➤";
+            }
+        });
+
+        // Actualisation automatique toutes les 2 secondes
+        setInterval(() => {
+            if (monPseudo) chargerMessages();
+        }, 2000);
+
+    </script>
+</body>
+</html>
