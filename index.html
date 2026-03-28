@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Murmur — Chat</title>
+  <title>Radar-Chat</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,7 +104,7 @@
               d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
           </svg>
         </div>
-        <h1 class="text-2xl font-semibold tracking-tight text-ink">Murmur</h1>
+        <h1 class="text-2xl font-semibold tracking-tight text-ink">Radar-Chat</h1>
         <p class="text-sm text-ink-muted mt-2">Rejoignez la conversation publique</p>
       </div>
 
@@ -497,16 +497,23 @@
             mediaType = file.type;
           }
 
-          const { error: insErr } = await db
+          const { data: inserted, error: insErr } = await db
             .from('chat_global')
             .insert({
               pseudo:     props.pseudo,
               texte:      msgText || null,
               media_url:  mediaUrl,
               media_type: mediaType,
-            });
+            })
+            .select()
+            .single();
 
           if (insErr) throw insErr;
+
+          // Afficher immédiatement le message envoyé
+          if (inserted && !messages.value.some(m => m.id === inserted.id)) {
+            messages.value.push(inserted);
+          }
 
           text.value = '';
           clearPending();
@@ -551,7 +558,7 @@
           const blob = await r.blob();
           const a    = Object.assign(document.createElement('a'), {
             href: URL.createObjectURL(blob),
-            download: modal.url.split('/').pop().split('?')[0] || 'murmur-media',
+            download: modal.url.split('/').pop().split('?')[0] || 'radar-chat-media',
           });
           document.body.appendChild(a);
           a.click();
@@ -590,17 +597,17 @@
     components: { LoginScreen, ChatScreen },
 
     setup() {
-      const pseudo     = ref(localStorage.getItem('murmur_user') || '');
+      const pseudo     = ref(localStorage.getItem('radarchat_user') || '');
       const isLoggedIn = computed(() => pseudo.value.length > 0);
 
       function handleLogin(name) {
         pseudo.value = name;
-        localStorage.setItem('murmur_user', name);
+        localStorage.setItem('radarchat_user', name);
       }
 
       function handleLogout() {
         pseudo.value = '';
-        localStorage.removeItem('murmur_user');
+        localStorage.removeItem('radarchat_user');
       }
 
       return { pseudo, isLoggedIn, handleLogin, handleLogout };
