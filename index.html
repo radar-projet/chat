@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -453,6 +453,9 @@
         await nextTick(() => scroll(false));
       }
 
+      /* ── dernier ID connu (pour le polling) ── */
+      const lastKnownId = ref(null);
+
       /* ── realtime subscription ── */
       function subscribe() {
         channel = db
@@ -462,6 +465,7 @@
           }, (payload) => {
             if (messages.value.some(m => m.id === payload.new.id)) return;
             messages.value.push(payload.new);
+            lastKnownId.value = payload.new.id;
             nextTick(() => scroll(true));
           })
           .subscribe();
@@ -469,6 +473,53 @@
 
       function unsubscribe() {
         if (channel) { db.removeChannel(channel); channel = null; }
+      }
+
+      /* ── polling intelligent (fallback si realtime inactif) ── */
+      let pollTimer = null;
+
+      async function pollNewMessages() {
+        try {
+          const query = db
+            .from('chat_global')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+          // Si on connaît le dernier ID, ne récupérer que les messages après
+          if (lastKnownId.value) {
+            query.gt('id', lastKnownId.value);
+          }
+
+          const { data, error } = await query;
+          if (error) return;
+          if (!data || data.length === 0) return;
+
+          // Fusionner les nouveaux messages sans doublons
+          const existingIds = new Set(messages.value.map(m => m.id));
+          let hasNew = false;
+          for (const msg of data) {
+            if (!existingIds.has(msg.id)) {
+              messages.value.push(msg);
+              hasNew = true;
+            }
+          }
+
+          if (hasNew && data.length > 0) {
+            lastKnownId.value = data[data.length - 1].id;
+            await nextTick(() => scroll(true));
+          }
+        } catch (e) {
+          /* polling silencieux */
+        }
+      }
+
+      function startPolling() {
+        stopPolling();
+        pollTimer = setInterval(pollNewMessages, 3000);
+      }
+
+      function stopPolling() {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       }
 
       /* ── send ── */
@@ -572,12 +623,19 @@
 
       /* ── lifecycle ── */
       onMounted(() => {
-        load();
-        subscribe();
+        load().then(() => {
+          // Enregistrer le dernier ID après le chargement initial
+          if (messages.value.length > 0) {
+            lastKnownId.value = messages.value[messages.value.length - 1].id;
+          }
+          subscribe();
+          startPolling();
+        });
         document.addEventListener('keydown', onKey);
       });
       onUnmounted(() => {
         unsubscribe();
+        stopPolling();
         document.removeEventListener('keydown', onKey);
       });
 
