@@ -435,16 +435,31 @@
         el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
       }
 
-      /* ── load ── */
+      /* ── load TOUS les messages (pagination automatique) ── */
       async function load() {
         loading.value = true;
         try {
-          const { data, error } = await db
-            .from('chat_global')
-            .select('*')
-            .order('created_at', { ascending: true });
-          if (error) throw error;
-          messages.value = data ?? [];
+          const all = [];
+          let from = 0;
+          const pageSize = 1000;
+          let hasMore = true;
+
+          while (hasMore) {
+            const { data, error, count } = await db
+              .from('chat_global')
+              .select('*', { count: 'exact' })
+              .order('created_at', { ascending: true })
+              .range(from, from + pageSize - 1);
+
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+
+            all.push(...data);
+            hasMore = all.length < (count ?? all.length);
+            from += pageSize;
+          }
+
+          messages.value = all;
         } catch (e) {
           console.error('Erreur chargement messages :', e);
           messages.value = [];
